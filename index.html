@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFK Uang</title>
+<style>
+  :root{
+    --bg:#F2F2F0;
+    --surface:#FFFFFF;
+    --line:#E1E1DC;
+    --text:#1C1F1B;
+    --text-dim:#8B8F87;
+    --accent:#1F7A4E;
+    --accent-boost:#C9971F;
+    --danger:#B3261E;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;}
+  .app{max-width:420px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:70px;}
+
+  .view{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .view.active{display:flex;}
+  .view.list{align-items:stretch;justify-content:flex-start;padding-top:56px;text-align:left;}
+
+  .balance-num{font-size:clamp(38px,11vw,58px);font-weight:700;color:var(--accent);
+    font-variant-numeric:tabular-nums;transition:color .3s;}
+  .balance-num.pulse{animation:pulse .3s ease;}
+  @keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.03);}100%{transform:scale(1);}}
+  body.boost-active .balance-num{color:var(--accent-boost);}
+
+  .tap-btn{margin-top:22px;font-size:18px;font-weight:700;background:var(--accent);color:#fff;
+    border:none;padding:20px 44px;border-radius:16px;cursor:pointer;transition:transform .1s;}
+  .tap-btn:active{transform:scale(.96);}
+  .hint-text{margin-top:14px;font-size:12.5px;color:var(--text-dim);max-width:280px;}
+
+  .rate-line{margin-top:14px;font-size:15px;color:var(--text-dim);}
+  .boost-line{margin-top:6px;font-size:13px;color:var(--text-dim);min-height:16px;}
+  body.boost-active .boost-line{color:var(--accent-boost);font-weight:600;}
+
+  .bank-label{font-size:13px;letter-spacing:.06em;color:var(--text-dim);text-transform:uppercase;margin-bottom:12px;}
+  .bank-num{font-size:clamp(28px,8vw,40px);font-weight:700;color:var(--accent);
+    font-variant-numeric:tabular-nums;word-break:break-all;}
+
+  .achieve-badge{position:fixed;top:14px;right:60px;max-width:calc(100% - 132px);background:var(--surface);border:1px solid var(--line);
+    color:var(--text-dim);font-size:11.5px;font-weight:600;padding:9px 14px;border-radius:999px;z-index:10;
+    display:flex;align-items:center;white-space:nowrap;overflow:hidden;}
+  .achieve-badge span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .pw-input{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;
+    background:var(--surface);color:var(--text);margin-bottom:10px;box-sizing:border-box;}
+  .pw-strength{font-size:12px;color:var(--text-dim);margin-bottom:10px;}
+  .pw-error{font-size:12px;color:var(--danger);margin-top:8px;}
+
+  .shop-header{display:flex;justify-content:space-between;font-size:13px;color:var(--text-dim);margin-bottom:6px;padding:0 4px;}
+  .shop-section-title{font-size:11px;letter-spacing:.08em;color:var(--text-dim);text-transform:uppercase;margin:20px 4px 6px;}
+  .shop-row{display:flex;align-items:center;gap:10px;padding:14px;margin-bottom:10px;
+    background:var(--surface);border:1px solid var(--line);border-radius:16px;}
+  .swatch{width:14px;height:14px;border-radius:50%;flex-shrink:0;}
+  .shop-name{flex:1;font-size:14px;}
+  .shop-desc{font-size:12px;color:var(--text-dim);display:block;}
+  .shop-btn{font-size:13px;font-weight:600;background:var(--bg);border:1px solid var(--line);color:var(--text);
+    padding:7px 14px;border-radius:999px;cursor:pointer;transition:.2s;white-space:nowrap;}
+  .shop-btn:disabled{opacity:.4;cursor:not-allowed;}
+  .shop-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);}
+  .shop-btn.wide{flex:1;}
+  .shop-note{font-size:12px;color:var(--text-dim);margin:6px 4px 0;}
+  .row-actions{display:flex;gap:6px;flex-shrink:0;}
+
+  .qty-toggle{display:flex;gap:6px;margin-bottom:10px;}
+  .qty-btn{flex:1;font-size:12.5px;font-weight:600;background:var(--surface);border:1px solid var(--line);
+    color:var(--text-dim);padding:9px;border-radius:12px;cursor:pointer;transition:.2s;}
+  .qty-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;gap:10px;}
+
+  .history-row{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:8px;
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;font-size:13px;}
+  .history-time{color:var(--text-dim);flex-shrink:0;width:36px;font-variant-numeric:tabular-nums;}
+  .history-text{flex:1;}
+  .claimed-tag{font-size:11px;color:var(--text-dim);white-space:nowrap;}
+  .empty-note{color:var(--text-dim);font-size:13px;padding:20px 4px;}
+
+  .balance-pair{display:flex;gap:10px;}
+  .balance-pair-item{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:center;}
+  .bank-num.small{font-size:clamp(18px,6vw,24px);}
+  .transfer-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px;margin:14px 0 4px;}
+  .transfer-actions{display:flex;gap:8px;}
+
+  .settings-btn{position:fixed;top:14px;right:14px;width:38px;height:38px;border-radius:50%;
+    background:var(--surface);border:1px solid var(--line);color:var(--text);font-size:16px;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:.2s;}
+  .settings-btn:hover,.settings-btn:focus-visible,.settings-btn.active{border-color:var(--accent);color:var(--accent);outline:none;}
+
+  .onboard-overlay{position:fixed;inset:0;background:var(--bg);z-index:50;overflow-y:auto;}
+  .onboard-step{display:none;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:28px 24px;text-align:center;}
+  .onboard-step.active{display:flex;}
+  .onboard-step.list{align-items:stretch;justify-content:flex-start;padding:56px 20px 40px;text-align:left;}
+  .onboard-text{font-size:14.5px;color:var(--text);line-height:1.6;max-width:300px;}
+  .onboard-continue-btn{margin-top:22px;font-size:15px;font-weight:700;background:var(--accent);color:#fff;border:none;padding:14px 32px;border-radius:12px;cursor:pointer;}
+
+  .career-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;}
+  .career-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;}
+  .career-name{font-size:15px;font-weight:700;}
+  .career-badge{font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--text-dim);white-space:nowrap;flex-shrink:0;}
+  .career-badge.passive{color:var(--accent);border-color:var(--accent);}
+  .career-badge.active{color:var(--accent-boost);border-color:var(--accent-boost);}
+  .career-desc{font-size:12.5px;color:var(--text-dim);margin-bottom:8px;}
+  .career-income{font-size:13px;font-weight:600;color:var(--accent);margin-bottom:10px;}
+  .career-proscons{font-size:12px;line-height:1.7;margin-bottom:12px;}
+  .career-pro{color:var(--accent);display:block;}
+  .career-con{color:var(--danger);display:block;}
+  .career-btn{width:100%;font-size:14px;font-weight:700;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;cursor:pointer;transition:.2s;}
+  .career-btn:hover{opacity:.9;}
+
+  .item-badge{width:26px;height:26px;border-radius:8px;background:var(--bg);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .item-badge svg{width:15px;height:15px;}
+  .icon-stock{stroke:var(--accent);}
+  .icon-gold{stroke:var(--accent-boost);}
+
+  .analysis-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;}
+  .analysis-head{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .analysis-head .career-name{flex:1;font-size:14px;}
+  .trend-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid var(--line);color:var(--text-dim);}
+  .trend-badge.gain{color:var(--accent);border-color:var(--accent);}
+  .trend-badge.loss{color:var(--danger);border-color:var(--danger);}
+  .spark{width:100%;height:34px;display:block;margin:6px 0;}
+  .analysis-stats{display:flex;gap:16px;margin:10px 0;flex-wrap:wrap;}
+  .analysis-stat{display:flex;flex-direction:column;gap:2px;}
+  .analysis-stat-label{font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;}
+  .analysis-stat-val{font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .analysis-net{font-size:12.5px;font-weight:600;color:var(--text-dim);}
+  .analysis-net.gain{color:var(--accent);}
+  .analysis-net.loss{color:var(--danger);}
+
+  .biometric-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+    font-size:14px;font-weight:700;background:var(--accent);color:#fff;border:none;
+    padding:13px;border-radius:12px;cursor:pointer;margin-bottom:14px;}
+  .biometric-btn svg{width:18px;height:18px;flex-shrink:0;}
+
+  .navbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+    border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0;}
+  .tab-btn{background:none;border:none;font-size:12.5px;font-weight:600;color:var(--text-dim);
+    padding:10px 8px;cursor:pointer;border-bottom:2px solid transparent;transition:.2s;}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab-btn:focus-visible{outline:none;color:var(--accent);}
+
+  @media (prefers-reduced-motion: reduce){
+    .balance-num.pulse{animation:none !important;}
+    .mode-btn,.shop-btn,.tab-btn,.tap-btn,.settings-btn,.career-btn,.qty-btn{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+  <button id="settings-btn" class="settings-btn" aria-label="Pengaturan">&#9881;</button>
+  <div id="achieve-badge" class="achieve-badge" style="display:none;">
+    <span id="achieve-badge-text"></span>
+  </div>
+
+  <div id="onboarding" class="onboard-overlay" style="display:none;">
+    <div id="onboard-welcome" class="onboard-step active">
+      <div class="onboard-text">Uang di game ini gak muncul gitu aja.<br><br>Sebelum mulai, pilih dulu jalur kariermu — itu yang nentuin dari mana penghasilan pertamamu datang.</div>
+      <button id="onboard-continue-btn" class="onboard-continue-btn">Lihat Pilihan Karier</button>
+    </div>
+    <div id="onboard-select" class="onboard-step list">
+      <div class="shop-section-title" style="margin-top:0;">Pilih Jalur Kariermu</div>
+      <div id="career-list"></div>
+    </div>
+  </div>
+
+  <div class="app">
+    <main id="view-home" class="view active">
+      <div id="balance-num" class="balance-num">0</div>
+
+      <div id="mining-section">
+        <button id="tap-btn" class="tap-btn">Tambang</button>
+        <div id="mining-hint" class="hint-text">Tap buat dapat uang. Beli karyawan pertama di Toko biar otomatis jalan sendiri.</div>
+      </div>
+
+      <div id="passive-section" style="display:none;">
+        <div id="rate" class="rate-line">+0/detik</div>
+        <div id="boost-status" class="boost-line"></div>
+      </div>
+    </main>
+
+    <main id="view-bank" class="view list">
+      <div id="vault-locked-section">
+        <div id="vault-setup" style="display:none;">
+          <div class="shop-section-title">Buat Sandi Brankas</div>
+          <input type="password" id="pw-input-new" class="pw-input" placeholder="Ketik sandi..." autocomplete="off">
+          <div id="pw-strength" class="pw-strength"></div>
+          <button id="pw-save-btn" class="shop-btn">Simpan Sandi</button>
+        </div>
+        <div id="vault-login" style="display:none;">
+          <div class="shop-section-title">Buka Brankas</div>
+          <button id="biometric-unlock-btn" class="biometric-btn" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a7 7 0 00-7 7c0 3.2.5 5.6 1.5 8"/><path d="M12 4a7 7 0 017 7c0 1.2-.1 2.3-.3 3.3"/><path d="M8.5 19a13 13 0 01-1.2-4.8V11a4.7 4.7 0 019.4 0v2.5"/><path d="M12 8.3a2.7 2.7 0 00-2.7 2.7v1.6c0 2.8.6 4.9 1.7 6.9"/><path d="M14.7 15.5a9 9 0 00.3-2.5v-1.6"/></svg>
+            <span>Buka pakai Sidik Jari</span>
+          </button>
+          <input type="password" id="pw-input-login" class="pw-input" placeholder="Masukkan sandi..." autocomplete="off">
+          <button id="pw-unlock-btn" class="shop-btn">Buka</button>
+          <div id="pw-error" class="pw-error"></div>
+        </div>
+      </div>
+
+      <div id="vault-unlocked-section" style="display:none;">
+        <div class="balance-pair">
+          <div class="balance-pair-item">
+            <div class="bank-label">Saldo Utama</div>
+            <div id="bank-main-balance" class="bank-num small">0</div>
+          </div>
+          <div class="balance-pair-item">
+            <div class="bank-label">Saldo Brankas</div>
+            <div id="bank-vault-balance" class="bank-num small">0</div>
+          </div>
+        </div>
+        <button id="change-pw-btn" class="shop-btn" style="margin-top:12px;">Ganti Sandi</button>
+
+        <div id="biometric-row" class="shop-row" style="display:none;margin-top:10px;">
+          <span class="item-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4a7 7 0 00-7 7c0 3.2.5 5.6 1.5 8"/><path d="M12 4a7 7 0 017 7c0 1.2-.1 2.3-.3 3.3"/><path d="M8.5 19a13 13 0 01-1.2-4.8V11a4.7 4.7 0 019.4 0v2.5"/><path d="M12 8.3a2.7 2.7 0 00-2.7 2.7v1.6c0 2.8.6 4.9 1.7 6.9"/><path d="M14.7 15.5a9 9 0 00.3-2.5v-1.6"/></svg></span>
+          <span class="shop-name">Sidik Jari<span class="shop-desc" id="biometric-status-text">Belum aktif</span></span>
+          <button id="biometric-toggle-btn" class="shop-btn">Aktifkan</button>
+        </div>
+
+        <div class="transfer-box">
+          <input type="number" id="transfer-amount" class="pw-input" placeholder="Jumlah" min="0" style="margin-bottom:8px;">
+          <div class="transfer-actions">
+            <button id="deposit-btn" class="shop-btn wide">Setor ke Brankas</button>
+            <button id="withdraw-btn" class="shop-btn wide">Tarik ke Saldo</button>
+          </div>
+        </div>
+
+        <div class="shop-section-title">Saham</div>
+        <div id="stock-list"></div>
+
+        <div class="shop-section-title">Emas Batangan</div>
+        <div id="gold-list"></div>
+      </div>
+    </main>
+
+    <main id="view-toko" class="view list">
+      <div class="shop-header"><span>Saldo</span><span id="shop-balance">0</span></div>
+
+      <div class="shop-section-title">Karyawan</div>
+      <div id="employee-list"></div>
+
+      <div class="shop-section-title">Boost <span id="boost-quota-note"></span></div>
+      <div id="boost-list"></div>
+
+      <div class="shop-section-title">Tema Warna</div>
+      <div id="theme-list"></div>
+    </main>
+
+    <main id="view-analisis" class="view list">
+      <div class="shop-section-title" style="margin-top:0;">Analisis Saham</div>
+      <div id="analysis-stock-list"></div>
+
+      <div class="shop-section-title">Analisis Emas</div>
+      <div id="analysis-gold-list"></div>
+    </main>
+
+    <main id="view-settings" class="view list">
+      <div class="shop-section-title">Mode</div>
+      <div class="settings-row">
+        <span id="mode-status-text">Mode Bangun</span>
+        <button id="mode-btn" class="shop-btn">Ganti ke Mode Tidur</button>
+      </div>
+      <div id="mode-note" class="shop-note"></div>
+
+      <div class="shop-section-title">Riwayat</div>
+      <div id="history-list"></div>
+    </main>
+  </div>
+
+  <nav class="navbar">
+    <button class="tab-btn active" data-view="home">Beranda</button>
+    <button class="tab-btn" data-view="bank">Bank</button>
+    <button class="tab-btn" data-view="toko">Toko</button>
+    <button class="tab-btn" data-view="analisis">Analisis</button>
+  </nav>
+
+<script>
+  const STORAGE_KEY = 'afkState3';
+  const OLD_KEY = 'afkState2';
+
+  const TAP_VALUE = 25;
+
+  const EMPLOYEES = [
+    {id:'magang', name:'Karyawan Magang', rate:500, price:5000, salary:200000},
+    {id:'tetap', name:'Karyawan Tetap', rate:1000, price:45000, salary:450000},
+    {id:'supervisor', name:'Supervisor', rate:2500, price:105000, salary:1300000},
+    {id:'manajer', name:'Manajer', rate:6000, price:200000, salary:3500000},
+    {id:'direktur', name:'Direktur', rate:15000, price:300000, salary:10000000}
+  ];
+
+  const BOOSTS = [
+    {id:'kecil', name:'Boost Kecil', mult:2, dur:15, factor:20},
+    {id:'sedang', name:'Boost Sedang', mult:3, dur:20, factor:35},
+    {id:'besar', name:'Boost Besar', mult:5, dur:25, factor:70},
+    {id:'super', name:'Boost Super', mult:8, dur:30, factor:130},
+    {id:'mega', name:'Boost Mega', mult:15, dur:40, factor:220}
+  ];
+
+  const THEMES = [
+    {id:'hijau', name:'Hijau Klasik', color:'#1F7A4E', price:0},
+    {id:'biru', name:'Biru Laut', color:'#2563A8', price:5000},
+    {id:'ungu', name:'Ungu Senja', color:'#7C3AED', price:20000},
+    {id:'emas', name:'Emas Mewah', color:'#B8860B', price:75000}
+  ];
+
+  const STOCKS = [
+    {id:'sahamA', name:'Saham Blue Chip', price:20000, dividendPerHour:3000},
+    {id:'sahamB', name:'Saham Growth', price:60000, dividendPerHour:11000},
+    {id:'sahamC', name:'Saham Teknologi', price:150000, dividendPerHour:32000}
+  ];
+
+  const GOLD_BARS = [
+    {id:'kecil', name:'Emas Kecil', basePrice:10000},
+    {id:'sedang', name:'Emas Sedang', basePrice:50000},
+    {id:'besar', name:'Emas Besar', basePrice:200000}
+  ];
+
+  const ACHIEVEMENTS = [
+    {threshold:1000, name:'Nabung Pertama'},
+    {threshold:10000, name:'Mulai Serius'},
+    {threshold:100000, name:'Sultan Receh'},
+    {threshold:1000000, name:'Sultan AFK'},
+    {threshold:10000000, name:'Bos Tabungan'},
+    {threshold:100000000, name:'Konglomerat Gabut'},
+    {threshold:1000000000, name:'Legenda Gabut'}
+  ];
+
+  const CAREERS = [
+    {id:'toko', name:'Pegawai Toko', type:'passive', rate:6,
+      desc:'Kerja paruh waktu di toko dekat rumah.',
+      pro:'Tetap dapat cuan walau HP ditinggal.',
+      con:'Nambahnya paling pelan dari semua jalur.'},
+    {id:'kantoran', name:'Staff Kantoran', type:'passive', rate:11,
+      desc:'Kerja administrasi kantoran, gaji rutin cair.',
+      pro:'Rate pasif lebih besar, tetap aman kalau AFK.',
+      con:'Segini aja ratenya, gak bisa dikebut manual.'},
+    {id:'driver', name:'Driver Online', type:'active', tapValue:22, tapLabel:'Narik',
+      tapHint:'Tap buat narik orderan. Beli karyawan pertama di Toko biar otomatis jalan sendiri.',
+      desc:'Narik penumpang & nganter pesanan tiap ada orderan.',
+      pro:'Makin rajin narik, makin cepat kekumpul.',
+      con:'Berhenti narik = berhenti dapat, gak ada yang jalan sendiri.'},
+    {id:'freelancer', name:'Freelancer Desain', type:'active', tapValue:32, tapLabel:'Garap',
+      tapHint:'Tap buat garap project klien. Beli karyawan pertama di Toko biar otomatis jalan sendiri.',
+      desc:'Terima job desain dari klien, tiap project kelar dibayar.',
+      pro:'Bayaran per kerjaan paling besar di semua jalur.',
+      con:'Sama kayak jalur usaha lain, nganggur = nol.'},
+    {id:'pedagang', name:'Pedagang Online', type:'active', tapValue:26, tapLabel:'Jual',
+      tapHint:'Tap buat closing orderan. Beli karyawan pertama di Toko biar otomatis jalan sendiri.',
+      desc:'Buka lapak jualan online, tiap closing dapat untung.',
+      pro:'Seimbang, gak kecil-kecil amat gak berat-berat amat.',
+      con:'Tetap harus aktif, gak ada yang otomatis dari awal.'}
+  ];
+
+  const SLEEP_RATE_PCT = 0.6;
+  const SLEEP_START_HOUR = 22;
+  const SLEEP_END_HOUR = 5;
+  const THEFT_CHANCE = {mudah:0.10, lumayan:0.05, susah:0.02, rumit:0};
+  const EMPLOYEE_GROWTH = 1.12;
+  const GOLD_MIN_FACTOR = 0.4;
+  const GOLD_MAX_FACTOR = 2.5;
+
+  const ICON_STOCK = '<svg viewBox="0 0 20 20" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon-stock"><path d="M3 15V11M9 15V7M15 15V3"/></svg>';
+  const ICON_GOLD = '<svg viewBox="0 0 20 20" fill="none" stroke-width="1.6" stroke-linejoin="round" class="icon-gold"><path d="M5 6h10l3 8H2z"/></svg>';
+
+  function sparklineSvg(data, color){
+    if (!data || data.length < 2) return '';
+    const w = 100, h = 34, pad = 3;
+    const min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+    const range = (max - min) || 1;
+    const step = (w - pad * 2) / (data.length - 1);
+    const points = data.map((v, i) => {
+      const x = pad + i * step;
+      const y = pad + (h - pad * 2) * (1 - (v - min) / range);
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">'
+      + '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+
+  let state = null;
+  let purchasedBoostMultiplier = 1;
+  let purchasedBoostUntil = 0;
+  let saveCounter = 0;
+  let currentView = 'home';
+  let bankUnlockedThisSession = false;
+
+  function pad(n){ return String(n).padStart(2, '0'); }
+
+  function seededRandom01(seed){
+    const x = Math.sin(seed * 99991 + 12345) * 10000;
+    return x - Math.floor(x);
+  }
+
+  function formatCountdown(sec){
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return pad(m) + ':' + pad(s);
+  }
+
+  function totalEmployeeRate(){
+    let sum = 0;
+    for (const e of EMPLOYEES){ sum += (state.employeeCounts[e.id] || 0) * e.rate; }
+    const career = CAREERS.find(c => c.id === state.careerPath);
+    if (career && career.type === 'passive') sum += career.rate;
+    return sum;
+  }
+
+  function employeePrice(emp, ownedCount){
+    return Math.round(emp.price * Math.pow(EMPLOYEE_GROWTH, ownedCount));
+  }
+
+  function employeeBulkCost(emp, ownedCount, qty){
+    let total = 0;
+    for (let i = 0; i < qty; i++){ total += employeePrice(emp, ownedCount + i); }
+    return total;
+  }
+
+  function maxAffordable(emp, ownedCount, balance){
+    let qty = 0;
+    let cost = 0;
+    while (qty < 9999){
+      const nextPrice = employeePrice(emp, ownedCount + qty);
+      if (cost + nextPrice > balance) break;
+      cost += nextPrice;
+      qty++;
+    }
+    return qty;
+  }
+
+  function ratePasswordStrength(pw){
+    if (!pw) return null;
+    const len = pw.length;
+    const hasDigit = /[0-9]/.test(pw);
+    const hasLower = /[a-z]/.test(pw);
+    const hasUpper = /[A-Z]/.test(pw);
+    const hasSymbol = /[^a-zA-Z0-9]/.test(pw);
+    const variety = [hasDigit, hasLower, hasUpper, hasSymbol].filter(Boolean).length;
+    const isWeakPattern = /(0123|1234|2345|3456|4567|5678|6789|abcd|password|sandi|1111|0000|123456)/i.test(pw);
+    const uniqueChars = new Set(pw.split('')).size;
+
+    let score = 0;
+    if (len >= 6) score++;
+    if (len >= 10) score++;
+    if (variety >= 2) score++;
+    if (variety >= 3) score++;
+    if (uniqueChars >= len * 0.6) score++;
+    if (isWeakPattern) score -= 2;
+
+    if (score <= 1) return 'mudah';
+    if (score === 2) return 'lumayan';
+    if (score === 3) return 'susah';
+    return 'rumit';
+  }
+
+  function addHistory(text, type, claimAmount){
+    state.history.unshift({ t: Date.now(), text: text, type: type || 'normal', claimAmount: claimAmount || 0, claimed: false });
+    state.history = state.history.slice(0, 20);
+  }
+
+  function checkGifts(elapsedNow){
+    const dayIndexNow = Math.floor(elapsedNow / 86400);
+    let d = state.lastGiftDay + 1;
+    let guard = 0;
+    while (d <= dayIndexNow && guard < 400){
+      const offset = seededRandom01(d * 2 + 1) * 86400;
+      const giftElapsed = d * 86400 + offset;
+      if (elapsedNow >= giftElapsed){
+        state.balance += 5000;
+        addHistory('Hadiah kejut +5.000');
+        state.lastGiftDay = d;
+        d++;
+      } else break;
+      guard++;
+    }
+  }
+
+  function checkCorruption(fullHours, elapsedNow){
+    if (totalEmployeeRate() <= 0) return;
+    let h = state.lastCorruptHourChecked + 1;
+    let guard = 0;
+    while (h <= fullHours && guard < 400){
+      const chance = seededRandom01(h * 2 + 1000001);
+      if (chance < 0.5){
+        const offset = seededRandom01(h * 2 + 2000002) * 3600;
+        const triggerElapsed = h * 3600 + offset;
+        if (elapsedNow >= triggerElapsed){
+          const pct = 0.03 + seededRandom01(h * 2 + 3000003) * 0.09;
+          const stolen = Math.max(1, Math.round(state.balance * pct));
+          state.balance = Math.max(0, state.balance - stolen);
+          const claim = Math.round(stolen * 0.1);
+          addHistory('Karyawan korup! Saldo berkurang ' + stolen.toLocaleString('id-ID'), 'corrupt', claim);
+          state.lastCorruptHourChecked = h;
+          h++;
+        } else break;
+      } else {
+        state.lastCorruptHourChecked = h;
+        h++;
+      }
+      guard++;
+    }
+  }
+
+  function checkSalary(fullHours){
+    let h = state.lastSalaryHour + 1;
+    let guard = 0;
+    while (h <= fullHours && guard < 400){
+      let totalSalary = 0;
+      for (const e of EMPLOYEES){ totalSalary += (state.employeeCounts[e.id] || 0) * e.salary; }
+      if (totalSalary > 0){
+        const paid = Math.min(state.balance, totalSalary);
+        state.balance -= paid;
+        if (paid > 0) addHistory('Gaji karyawan dibayar: -' + paid.toLocaleString('id-ID'));
+      }
+      state.lastSalaryHour = h;
+      h++;
+      guard++;
+    }
+  }
+
+  function checkDividend(fullHours){
+    let h = state.lastDividendHour + 1;
+    let guard = 0;
+    while (h <= fullHours && guard < 400){
+      let totalDividend = 0;
+      for (const s of STOCKS){
+        const div = (state.stockHoldings[s.id] || 0) * s.dividendPerHour;
+        if (div > 0){
+          state.stockDividendEarned[s.id] = (state.stockDividendEarned[s.id] || 0) + div;
+          totalDividend += div;
+        }
+      }
+      if (totalDividend > 0){
+        state.bankBalance += totalDividend;
+        addHistory('Dividen saham masuk brankas: +' + totalDividend.toLocaleString('id-ID'));
+      }
+      state.lastDividendHour = h;
+      h++;
+      guard++;
+    }
+  }
+
+  function checkVaultTheft(fullHours){
+    if (!state.vaultPassword){ state.lastVaultTheftHour = fullHours; return; }
+    const strength = ratePasswordStrength(state.vaultPassword);
+    const chance = THEFT_CHANCE[strength] || 0;
+    if (chance <= 0){ state.lastVaultTheftHour = fullHours; return; }
+    let h = state.lastVaultTheftHour + 1;
+    let guard = 0;
+    while (h <= fullHours && guard < 400){
+      const roll = seededRandom01(h * 2 + 5000005);
+      if (roll < chance && state.bankBalance > 0){
+        const stolen = Math.round(state.bankBalance * 0.25);
+        state.bankBalance -= stolen;
+        addHistory('Brankas dibobol! Bank berkurang ' + stolen.toLocaleString('id-ID'));
+      }
+      state.lastVaultTheftHour = h;
+      h++;
+      guard++;
+    }
+  }
+
+  function checkGoldPrice(fullHours){
+    let h = state.lastGoldHour + 1;
+    let guard = 0;
+    while (h <= fullHours && guard < 400){
+      GOLD_BARS.forEach((g, idx) => {
+        const change = -0.06 + seededRandom01(h * 7 + idx * 101 + 6000006) * 0.14;
+        const cur = state.goldPrice[g.id] || g.basePrice;
+        const next = Math.round(cur * (1 + change));
+        const clamped = Math.min(Math.round(g.basePrice * GOLD_MAX_FACTOR), Math.max(Math.round(g.basePrice * GOLD_MIN_FACTOR), next));
+        state.goldPrice[g.id] = clamped;
+        if (!state.goldPriceHistory[g.id]) state.goldPriceHistory[g.id] = [];
+        state.goldPriceHistory[g.id].push(clamped);
+        if (state.goldPriceHistory[g.id].length > 24) state.goldPriceHistory[g.id].shift();
+      });
+      state.lastGoldHour = h;
+      h++;
+      guard++;
+    }
+  }
+
+  function checkAchievements(){
+    for (const a of ACHIEVEMENTS){
+      if (state.balance >= a.threshold){
+        if (state.currentAchievement === null || a.threshold > state.currentAchievement){
+          state.currentAchievement = a.threshold;
+        }
+      }
+    }
+  }
+
+  function isSleepWindowNow(){
+    const h = new Date().getHours();
+    return (h >= SLEEP_START_HOUR || h < SLEEP_END_HOUR);
+  }
+
+  function ensureStateDefaults(){
+    if (!state.employeeCounts){
+      state.employeeCounts = {};
+      if (state.ownedEmployees && Array.isArray(state.ownedEmployees)){
+        state.ownedEmployees.forEach(id => { state.employeeCounts[id] = 1; });
+      }
+    }
+    if (state.buyQty === undefined) state.buyQty = '1';
+    if (state.boostQuotaRemaining === undefined) state.boostQuotaRemaining = 5;
+    if (state.lastQuotaHour === undefined) state.lastQuotaHour = -1;
+    if (state.lastCorruptHourChecked === undefined) state.lastCorruptHourChecked = -1;
+    if (!state.ownedThemes) state.ownedThemes = ['hijau'];
+    if (!state.activeTheme) state.activeTheme = 'hijau';
+    if (!state.history) state.history = [];
+    if (state.currentAchievement === undefined){
+      if (state.achievements && state.achievements.length > 0){
+        state.currentAchievement = Math.max.apply(null, state.achievements);
+      } else {
+        state.currentAchievement = null;
+      }
+    }
+    if (state.lastGiftDay === undefined) state.lastGiftDay = -1;
+    if (!state.mode) state.mode = 'wake';
+    if (state.balance === undefined) state.balance = 0;
+    if (state.bankBalance === undefined) state.bankBalance = 0;
+    if (state.vaultPassword === undefined) state.vaultPassword = null;
+    if (!state.stockHoldings) state.stockHoldings = {};
+    if (!state.goldHoldings) state.goldHoldings = {};
+    if (!state.goldPrice) state.goldPrice = {};
+    if (!state.stockInvested) state.stockInvested = {};
+    if (!state.stockDividendEarned) state.stockDividendEarned = {};
+    if (!state.goldAvgCost) state.goldAvgCost = {};
+    if (!state.goldPriceHistory) state.goldPriceHistory = {};
+    STOCKS.forEach(s => {
+      if (state.stockInvested[s.id] === undefined && (state.stockHoldings[s.id] || 0) > 0){
+        state.stockInvested[s.id] = (state.stockHoldings[s.id] || 0) * s.price;
+      }
+    });
+    GOLD_BARS.forEach(g => {
+      if (state.goldAvgCost[g.id] === undefined && (state.goldHoldings[g.id] || 0) > 0){
+        state.goldAvgCost[g.id] = state.goldPrice[g.id] || g.basePrice;
+      }
+    });
+    if (state.vaultBiometricId === undefined) state.vaultBiometricId = null;
+    if (state.lastGoldHour === undefined) state.lastGoldHour = -1;
+    if (state.lastDividendHour === undefined) state.lastDividendHour = -1;
+    if (state.lastSalaryHour === undefined) state.lastSalaryHour = -1;
+    if (state.lastVaultTheftHour === undefined) state.lastVaultTheftHour = -1;
+    if (state.careerChosen === undefined){
+      state.careerChosen = (state.balance > 0 || Object.keys(state.employeeCounts).length > 0);
+    }
+    if (state.careerPath === undefined) state.careerPath = null;
+  }
+
+  async function saveState(){
+    try{ await window.storage.set(STORAGE_KEY, JSON.stringify(state), false); } catch(e){ /* diam saja */ }
+  }
+
+  async function loadState(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      if (res && res.value){ state = JSON.parse(res.value); ensureStateDefaults(); return; }
+    } catch(e){ /* belum ada, cek key lama */ }
+
+    let seedStart = Date.now();
+    let seedBalance = 0;
+    try{
+      const legacy = await window.storage.get(OLD_KEY, false);
+      if (legacy && legacy.value){
+        const old = JSON.parse(legacy.value);
+        if (old.startTime) seedStart = old.startTime;
+        if (old.balance) seedBalance = old.balance;
+      }
+    } catch(e){ /* tidak ada, mulai baru */ }
+
+    state = {
+      startTime: seedStart,
+      balance: seedBalance,
+      bankBalance: 0,
+      lastCalc: Date.now(),
+      mode: 'wake',
+      careerChosen: false,
+      careerPath: null,
+      buyQty: '1',
+      lastGiftDay: -1,
+      lastCorruptHourChecked: -1,
+      lastQuotaHour: -1,
+      lastSalaryHour: -1,
+      lastDividendHour: -1,
+      lastVaultTheftHour: -1,
+      lastGoldHour: -1,
+      boostQuotaRemaining: 5,
+      currentAchievement: null,
+      ownedThemes: ['hijau'],
+      activeTheme: 'hijau',
+      employeeCounts: {},
+      stockHoldings: {},
+      goldHoldings: {},
+      goldPrice: {},
+      stockInvested: {},
+      stockDividendEarned: {},
+      goldAvgCost: {},
+      goldPriceHistory: {},
+      vaultBiometricId: null,
+      vaultPassword: null,
+      history: []
+    };
+  }
+
+  function applyOfflineCatchup(){
+    const now = Date.now();
+    const gapSeconds = Math.max(0, Math.floor((now - state.lastCalc) / 1000));
+    const empRate = totalEmployeeRate();
+    if (gapSeconds > 0 && empRate > 0){
+      if (state.mode === 'sleep'){
+        state.balance += Math.round(empRate * SLEEP_RATE_PCT) * gapSeconds;
+      } else {
+        state.balance += empRate * gapSeconds;
+      }
+    }
+    const elapsedNow = Math.floor((now - state.startTime) / 1000);
+    const fullHoursNow = Math.floor(elapsedNow / 3600);
+    checkGifts(elapsedNow);
+    if (state.mode === 'wake') checkCorruption(fullHoursNow, elapsedNow);
+    checkSalary(fullHoursNow);
+    checkDividend(fullHoursNow);
+    checkGoldPrice(fullHoursNow);
+    checkVaultTheft(fullHoursNow);
+    checkAchievements();
+    if (fullHoursNow > state.lastQuotaHour){ state.boostQuotaRemaining = 5; state.lastQuotaHour = fullHoursNow; }
+    state.lastCalc = now;
+  }
+
+  function applyTheme(){
+    const theme = THEMES.find(t => t.id === state.activeTheme) || THEMES[0];
+    document.documentElement.style.setProperty('--accent', theme.color);
+  }
+
+  function tapMine(){
+    if (totalEmployeeRate() > 0) return;
+    const career = CAREERS.find(c => c.id === state.careerPath);
+    const value = (career && career.type === 'active') ? career.tapValue : TAP_VALUE;
+    state.balance += value;
+    checkAchievements();
+    renderHome();
+    saveCounter++;
+    if (saveCounter >= 5){ saveCounter = 0; saveState(); }
+  }
+
+  function tick(){
+    const now = Date.now();
+    const elapsedSchedule = Math.floor((now - state.startTime) / 1000);
+    const fullHours = Math.floor(elapsedSchedule / 3600);
+
+    if (fullHours > state.lastQuotaHour){
+      state.boostQuotaRemaining = 5;
+      state.lastQuotaHour = fullHours;
+    }
+
+    const empRate = totalEmployeeRate();
+    if (empRate > 0){
+      const purchasedBoostActive = now < purchasedBoostUntil;
+      let rate;
+      if (state.mode === 'sleep'){
+        rate = Math.round(empRate * SLEEP_RATE_PCT);
+      } else if (purchasedBoostActive){
+        rate = empRate * purchasedBoostMultiplier;
+      } else {
+        rate = empRate;
+      }
+      state.balance += rate;
+    }
+
+    checkGifts(elapsedSchedule);
+    if (state.mode === 'wake') checkCorruption(fullHours, elapsedSchedule);
+    checkSalary(fullHours);
+    checkDividend(fullHours);
+    checkGoldPrice(fullHours);
+    checkVaultTheft(fullHours);
+    checkAchievements();
+    state.lastCalc = now;
+
+    renderAll();
+
+    saveCounter++;
+    if (saveCounter >= 10){ saveCounter = 0; saveState(); }
+  }
+
+  function renderHome(){
+    document.getElementById('balance-num').textContent = state.balance.toLocaleString('id-ID');
+    const numEl = document.getElementById('balance-num');
+    numEl.classList.remove('pulse'); void numEl.offsetWidth; numEl.classList.add('pulse');
+
+    const empRate = totalEmployeeRate();
+    const miningSection = document.getElementById('mining-section');
+    const passiveSection = document.getElementById('passive-section');
+
+    if (empRate <= 0){
+      miningSection.style.display = '';
+      passiveSection.style.display = 'none';
+      document.body.classList.remove('boost-active');
+      const career = CAREERS.find(c => c.id === state.careerPath);
+      document.getElementById('tap-btn').textContent = career ? career.tapLabel : 'Tambang';
+      document.getElementById('mining-hint').textContent = career
+        ? career.tapHint
+        : 'Tap buat dapat uang. Beli karyawan pertama di Toko biar otomatis jalan sendiri.';
+    } else {
+      miningSection.style.display = 'none';
+      passiveSection.style.display = '';
+      const now = Date.now();
+      const purchasedBoostActive = now < purchasedBoostUntil;
+      let rate, statusText;
+      if (state.mode === 'sleep'){
+        rate = Math.round(empRate * SLEEP_RATE_PCT);
+        statusText = 'Mode Tidur \u00b7 karyawan tetap kerja, aman dari korupsi';
+      } else if (purchasedBoostActive){
+        rate = empRate * purchasedBoostMultiplier;
+        const remaining = Math.max(0, Math.ceil((purchasedBoostUntil - now) / 1000));
+        statusText = 'Boost aktif x' + purchasedBoostMultiplier + ' \u00b7 ' + remaining + ' detik lagi';
+      } else {
+        rate = empRate;
+        statusText = '';
+      }
+      document.getElementById('rate').textContent = '+' + rate.toLocaleString('id-ID') + '/detik';
+      document.getElementById('boost-status').textContent = statusText;
+      document.body.classList.toggle('boost-active', purchasedBoostActive && state.mode === 'wake');
+    }
+  }
+
+  function renderShop(){
+    document.getElementById('shop-balance').textContent = state.balance.toLocaleString('id-ID');
+
+    const empListEl = document.getElementById('employee-list');
+    const qtyToggleHtml = '<div class="qty-toggle">' + ['1','10','max'].map(q =>
+      '<button class="qty-btn' + (state.buyQty === q ? ' active' : '') + '" data-qty="' + q + '">' + (q === 'max' ? 'Maks' : 'x' + q) + '</button>'
+    ).join('') + '</div>';
+    const empRowsHtml = EMPLOYEES.map(e => {
+      const owned = state.employeeCounts[e.id] || 0;
+      const qty = state.buyQty === 'max' ? maxAffordable(e, owned, state.balance) : parseInt(state.buyQty, 10);
+      const cost = qty > 0 ? employeeBulkCost(e, owned, qty) : 0;
+      const disabled = (qty <= 0 || state.balance < cost) ? 'disabled' : '';
+      const btnText = qty > 0 ? (qty > 1 ? qty + 'x ' : '') + cost.toLocaleString('id-ID') : '\u2014';
+      return '<div class="shop-row"><span class="shop-name">' + e.name
+        + '<span class="shop-desc">' + e.rate.toLocaleString('id-ID') + '/detik \u00b7 gaji ' + e.salary.toLocaleString('id-ID') + '/jam \u00b7 punya ' + owned + '</span></span>'
+        + '<button class="shop-btn" ' + disabled + ' data-emp="' + e.id + '" data-buyqty="' + qty + '">' + btnText + '</button></div>';
+    }).join('');
+    empListEl.innerHTML = qtyToggleHtml + empRowsHtml;
+    empListEl.querySelectorAll('.qty-btn').forEach(btn => {
+      btn.addEventListener('click', () => { state.buyQty = btn.dataset.qty; renderShop(); });
+    });
+    empListEl.querySelectorAll('[data-emp]').forEach(btn => {
+      btn.addEventListener('click', () => buyEmployee(btn.dataset.emp, parseInt(btn.dataset.buyqty, 10)));
+    });
+
+    const empRate = totalEmployeeRate();
+    const elapsedSchedule = Math.floor((Date.now() - state.startTime) / 1000);
+    const remainderHour = elapsedSchedule - Math.floor(elapsedSchedule / 3600) * 3600;
+    document.getElementById('boost-quota-note').textContent = '(sisa ' + state.boostQuotaRemaining + '/5 \u00b7 penuh lagi ' + formatCountdown(3600 - remainderHour) + ')';
+    const boostListEl = document.getElementById('boost-list');
+    if (empRate <= 0){
+      boostListEl.innerHTML = '<div class="shop-note">Beli karyawan dulu buat buka Boost.</div>';
+    } else {
+      let html = BOOSTS.map(b => {
+        const price = Math.max(1, Math.round(b.factor * empRate));
+        const disabled = (state.balance < price || state.boostQuotaRemaining <= 0 || state.mode !== 'wake') ? 'disabled' : '';
+        return '<div class="shop-row"><span class="shop-name">' + b.name + ' <span class="shop-desc">(x' + b.mult + ', ' + b.dur + 'd)</span></span>'
+          + '<button class="shop-btn" ' + disabled + ' data-boost="' + b.id + '">' + price.toLocaleString('id-ID') + '</button></div>';
+      }).join('');
+      if (state.mode !== 'wake') html += '<div class="shop-note">Boost cuma bisa dibeli pas Mode Bangun.</div>';
+      boostListEl.innerHTML = html;
+      boostListEl.querySelectorAll('.shop-btn').forEach(btn => {
+        if (!btn.disabled) btn.addEventListener('click', () => buyBoost(btn.dataset.boost));
+      });
+    }
+
+    const themeListEl = document.getElementById('theme-list');
+    themeListEl.innerHTML = THEMES.map(t => {
+      const owned = state.ownedThemes.indexOf(t.id) !== -1;
+      const active = state.activeTheme === t.id;
+      const btnText = active ? 'Aktif' : (owned ? 'Pakai' : t.price.toLocaleString('id-ID'));
+      const disabled = (!owned && state.balance < t.price) ? 'disabled' : '';
+      return '<div class="shop-row"><span class="swatch" style="background:' + t.color + '"></span>'
+        + '<span class="shop-name">' + t.name + '</span>'
+        + '<button class="shop-btn" ' + disabled + ' data-theme="' + t.id + '">' + btnText + '</button></div>';
+    }).join('');
+    themeListEl.querySelectorAll('.shop-btn').forEach(btn => {
+      btn.addEventListener('click', () => buyTheme(btn.dataset.theme));
+    });
+  }
+
+  function buyEmployee(id, qty){
+    const emp = EMPLOYEES.find(e => e.id === id);
+    if (!emp || !qty || qty <= 0) return;
+    const owned = state.employeeCounts[id] || 0;
+    const cost = employeeBulkCost(emp, owned, qty);
+    if (state.balance < cost) return;
+    state.balance -= cost;
+    state.employeeCounts[id] = owned + qty;
+    addHistory('Rekrut ' + qty + 'x ' + emp.name + ' (-' + cost.toLocaleString('id-ID') + ')');
+    saveState();
+    renderShop();
+    renderHome();
+  }
+
+  function buyBoost(id){
+    const b = BOOSTS.find(x => x.id === id);
+    if (!b) return;
+    if (state.mode !== 'wake' || state.boostQuotaRemaining <= 0) return;
+    const empRate = totalEmployeeRate();
+    if (empRate <= 0) return;
+    const price = Math.max(1, Math.round(b.factor * empRate));
+    if (state.balance < price) return;
+    state.balance -= price;
+    state.boostQuotaRemaining -= 1;
+    purchasedBoostMultiplier = b.mult;
+    purchasedBoostUntil = Date.now() + b.dur * 1000;
+    addHistory('Beli ' + b.name + ' (x' + b.mult + ', ' + b.dur + 'd)');
+    saveState();
+    renderShop();
+    renderHome();
+  }
+
+  function buyTheme(id){
+    const theme = THEMES.find(t => t.id === id);
+    if (!theme) return;
+    if (state.ownedThemes.indexOf(id) !== -1){
+      state.activeTheme = id;
+    } else if (state.balance >= theme.price){
+      state.balance -= theme.price;
+      state.ownedThemes.push(id);
+      state.activeTheme = id;
+      addHistory('Beli tema ' + theme.name);
+    }
+    applyTheme();
+    saveState();
+    renderShop();
+    renderHome();
+  }
+
+  function renderAchieveBadge(){
+    const el = document.getElementById('achieve-badge');
+    if (state.currentAchievement === null){
+      el.style.display = 'none';
+      return;
+    }
+    const a = ACHIEVEMENTS.find(x => x.threshold === state.currentAchievement);
+    document.getElementById('achieve-badge-text').textContent = a ? a.name : '';
+    el.style.display = 'flex';
+  }
+
+  async function renderBankGate(){
+    const lockedEl = document.getElementById('vault-locked-section');
+    const unlockedEl = document.getElementById('vault-unlocked-section');
+    const setupEl = document.getElementById('vault-setup');
+    const loginEl = document.getElementById('vault-login');
+
+    if (bankUnlockedThisSession){
+      lockedEl.style.display = 'none';
+      unlockedEl.style.display = '';
+      renderVaultContents();
+      const bioRow = document.getElementById('biometric-row');
+      if (await isBiometricAvailable()){
+        bioRow.style.display = '';
+        const registered = !!state.vaultBiometricId;
+        document.getElementById('biometric-status-text').textContent = registered ? 'Aktif di HP ini' : 'Belum aktif';
+        document.getElementById('biometric-toggle-btn').textContent = registered ? 'Matikan' : 'Aktifkan';
+      } else {
+        bioRow.style.display = 'none';
+      }
+    } else {
+      lockedEl.style.display = '';
+      unlockedEl.style.display = 'none';
+      if (!state.vaultPassword){
+        setupEl.style.display = '';
+        loginEl.style.display = 'none';
+        document.getElementById('pw-input-new').value = '';
+        document.getElementById('pw-strength').textContent = '';
+      } else {
+        setupEl.style.display = 'none';
+        loginEl.style.display = '';
+        document.getElementById('pw-input-login').value = '';
+        document.getElementById('pw-error').textContent = '';
+        const bioBtn = document.getElementById('biometric-unlock-btn');
+        bioBtn.style.display = (state.vaultBiometricId && await isBiometricAvailable()) ? 'flex' : 'none';
+      }
+    }
+  }
+
+  function renderVaultContents(){
+    document.getElementById('bank-main-balance').textContent = state.balance.toLocaleString('id-ID');
+    document.getElementById('bank-vault-balance').textContent = state.bankBalance.toLocaleString('id-ID');
+
+    const stockListEl = document.getElementById('stock-list');
+    stockListEl.innerHTML = STOCKS.map(s => {
+      const owned = state.stockHoldings[s.id] || 0;
+      const disabled = state.balance < s.price ? 'disabled' : '';
+      return '<div class="shop-row"><span class="item-badge">' + ICON_STOCK + '</span><span class="shop-name">' + s.name
+        + '<span class="shop-desc">' + s.dividendPerHour.toLocaleString('id-ID') + '/jam per lembar \u00b7 punya ' + owned + '</span></span>'
+        + '<button class="shop-btn" ' + disabled + ' data-stock="' + s.id + '">' + s.price.toLocaleString('id-ID') + '</button></div>';
+    }).join('');
+    stockListEl.querySelectorAll('.shop-btn').forEach(btn => {
+      btn.addEventListener('click', () => buyStock(btn.dataset.stock));
+    });
+
+    const goldListEl = document.getElementById('gold-list');
+    goldListEl.innerHTML = GOLD_BARS.map(g => {
+      const price = state.goldPrice[g.id] || g.basePrice;
+      const owned = state.goldHoldings[g.id] || 0;
+      const trend = price > g.basePrice ? '\u2191' : (price < g.basePrice ? '\u2193' : '\u2192');
+      const buyDisabled = state.balance < price ? 'disabled' : '';
+      const sellDisabled = owned <= 0 ? 'disabled' : '';
+      return '<div class="shop-row"><span class="item-badge">' + ICON_GOLD + '</span><span class="shop-name">' + g.name
+        + '<span class="shop-desc">harga ' + trend + ' ' + price.toLocaleString('id-ID') + ' \u00b7 punya ' + owned + '</span></span>'
+        + '<div class="row-actions">'
+        + '<button class="shop-btn" ' + buyDisabled + ' data-gold-buy="' + g.id + '">Beli</button>'
+        + '<button class="shop-btn" ' + sellDisabled + ' data-gold-sell="' + g.id + '">Jual</button>'
+        + '</div></div>';
+    }).join('');
+    goldListEl.querySelectorAll('[data-gold-buy]').forEach(btn => {
+      btn.addEventListener('click', () => buyGold(btn.dataset.goldBuy));
+    });
+    goldListEl.querySelectorAll('[data-gold-sell]').forEach(btn => {
+      btn.addEventListener('click', () => sellGold(btn.dataset.goldSell));
+    });
+  }
+
+  function depositToBank(){
+    const input = document.getElementById('transfer-amount');
+    const amt = Math.floor(Number(input.value));
+    if (!amt || amt <= 0 || amt > state.balance) return;
+    state.balance -= amt;
+    state.bankBalance += amt;
+    addHistory('Setor ke brankas: ' + amt.toLocaleString('id-ID'));
+    input.value = '';
+    saveState();
+    renderVaultContents();
+    renderHome();
+  }
+
+  function withdrawFromBank(){
+    const input = document.getElementById('transfer-amount');
+    const amt = Math.floor(Number(input.value));
+    if (!amt || amt <= 0 || amt > state.bankBalance) return;
+    state.bankBalance -= amt;
+    state.balance += amt;
+    addHistory('Tarik dari brankas: ' + amt.toLocaleString('id-ID'));
+    input.value = '';
+    saveState();
+    renderVaultContents();
+    renderHome();
+  }
+
+  function buyStock(id){
+    const s = STOCKS.find(x => x.id === id);
+    if (!s || state.balance < s.price) return;
+    state.balance -= s.price;
+    state.stockHoldings[id] = (state.stockHoldings[id] || 0) + 1;
+    state.stockInvested[id] = (state.stockInvested[id] || 0) + s.price;
+    addHistory('Beli ' + s.name);
+    saveState();
+    renderVaultContents();
+    renderHome();
+  }
+
+  function buyGold(id){
+    const g = GOLD_BARS.find(x => x.id === id);
+    if (!g) return;
+    const price = state.goldPrice[id] || g.basePrice;
+    if (state.balance < price) return;
+    state.balance -= price;
+    const oldQty = state.goldHoldings[id] || 0;
+    const oldAvg = state.goldAvgCost[id] || 0;
+    const newQty = oldQty + 1;
+    state.goldAvgCost[id] = Math.round((oldAvg * oldQty + price) / newQty);
+    state.goldHoldings[id] = newQty;
+    addHistory('Beli ' + g.name + ' @ ' + price.toLocaleString('id-ID'));
+    saveState();
+    renderVaultContents();
+    renderHome();
+  }
+
+  function sellGold(id){
+    const g = GOLD_BARS.find(x => x.id === id);
+    if (!g) return;
+    const owned = state.goldHoldings[id] || 0;
+    if (owned <= 0) return;
+    const price = state.goldPrice[id] || g.basePrice;
+    state.goldHoldings[id] = owned - 1;
+    if (state.goldHoldings[id] <= 0) state.goldAvgCost[id] = 0;
+    state.bankBalance += price;
+    addHistory('Jual ' + g.name + ' @ ' + price.toLocaleString('id-ID') + ', masuk brankas');
+    saveState();
+    renderVaultContents();
+    renderHome();
+  }
+
+  function renderAnalysis(){
+    const stockEl = document.getElementById('analysis-stock-list');
+    stockEl.innerHTML = STOCKS.map(s => {
+      const owned = state.stockHoldings[s.id] || 0;
+      const invested = state.stockInvested[s.id] || 0;
+      const earned = state.stockDividendEarned[s.id] || 0;
+      const net = earned - invested;
+      const netClass = net > 0 ? 'gain' : (net < 0 ? 'loss' : '');
+      const netText = owned === 0 ? 'Belum punya lembar saham ini'
+        : (net > 0 ? 'Untung +' + net.toLocaleString('id-ID') + ' (udah balik modal)'
+        : (net < 0 ? 'Belum balik modal, kurang ' + Math.abs(net).toLocaleString('id-ID') : 'Pas balik modal'));
+      return '<div class="analysis-card"><div class="analysis-head"><span class="item-badge">' + ICON_STOCK + '</span>'
+        + '<span class="career-name">' + s.name + '</span></div>'
+        + '<div class="analysis-stats">'
+        + '<div class="analysis-stat"><span class="analysis-stat-label">Punya</span><span class="analysis-stat-val">' + owned + ' lembar</span></div>'
+        + '<div class="analysis-stat"><span class="analysis-stat-label">Modal</span><span class="analysis-stat-val">' + invested.toLocaleString('id-ID') + '</span></div>'
+        + '<div class="analysis-stat"><span class="analysis-stat-label">Dividen Diterima</span><span class="analysis-stat-val">' + earned.toLocaleString('id-ID') + '</span></div>'
+        + '</div><div class="analysis-net ' + netClass + '">' + netText + '</div></div>';
+    }).join('');
+
+    const goldEl = document.getElementById('analysis-gold-list');
+    goldEl.innerHTML = GOLD_BARS.map(g => {
+      const price = state.goldPrice[g.id] || g.basePrice;
+      const owned = state.goldHoldings[g.id] || 0;
+      const avgCost = state.goldAvgCost[g.id] || 0;
+      const pctFromBase = Math.round((price / g.basePrice - 1) * 100);
+      const trendClass = pctFromBase > 0 ? 'gain' : (pctFromBase < 0 ? 'loss' : 'flat');
+      const history = state.goldPriceHistory[g.id] || [];
+      const sparkColor = pctFromBase >= 0 ? 'var(--accent)' : 'var(--danger)';
+      let netHtml = '<div class="analysis-net">Belum punya emas ini</div>';
+      if (owned > 0 && avgCost > 0){
+        const unrealized = Math.round((price - avgCost) * owned);
+        const unrealizedPct = Math.round((price / avgCost - 1) * 100);
+        const uClass = unrealized > 0 ? 'gain' : (unrealized < 0 ? 'loss' : '');
+        netHtml = '<div class="analysis-net ' + uClass + '">' + (unrealized >= 0 ? 'Untung +' : 'Rugi ') + unrealized.toLocaleString('id-ID')
+          + ' (' + (unrealizedPct >= 0 ? '+' : '') + unrealizedPct + '%) kalau dijual sekarang</div>';
+      }
+      return '<div class="analysis-card"><div class="analysis-head"><span class="item-badge">' + ICON_GOLD + '</span>'
+        + '<span class="career-name">' + g.name + '</span>'
+        + '<span class="trend-badge ' + trendClass + '">' + (pctFromBase >= 0 ? '+' : '') + pctFromBase + '% dr awal</span></div>'
+        + sparklineSvg(history, sparkColor)
+        + '<div class="analysis-stats">'
+        + '<div class="analysis-stat"><span class="analysis-stat-label">Harga Sekarang</span><span class="analysis-stat-val">' + price.toLocaleString('id-ID') + '</span></div>'
+        + '<div class="analysis-stat"><span class="analysis-stat-label">Punya</span><span class="analysis-stat-val">' + owned + '</span></div>'
+        + (owned > 0 ? '<div class="analysis-stat"><span class="analysis-stat-label">Avg Beli</span><span class="analysis-stat-val">' + avgCost.toLocaleString('id-ID') + '</span></div>' : '')
+        + '</div>' + netHtml + '</div>';
+    }).join('');
+  }
+
+  async function isBiometricAvailable(){
+    if (!window.PublicKeyCredential) return false;
+    try{ return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+    catch(e){ return false; }
+  }
+
+  function bufToBase64(buf){
+    return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)));
+  }
+  function base64ToBuf(b64){
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  async function registerBiometric(){
+    try{
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      const userId = new Uint8Array(16);
+      crypto.getRandomValues(userId);
+      const cred = await navigator.credentials.create({
+        publicKey: {
+          challenge: challenge,
+          rp: { name: 'AFK Uang' },
+          user: { id: userId, name: 'Brankas', displayName: 'Brankas' },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000
+        }
+      });
+      if (cred){ state.vaultBiometricId = bufToBase64(cred.rawId); saveState(); return true; }
+    } catch(e){ /* dibatalkan atau gak didukung */ }
+    return false;
+  }
+
+  async function verifyBiometric(){
+    if (!state.vaultBiometricId) return false;
+    try{
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      const assertion = await navigator.credentials.get({
+        publicKey: {
+          challenge: challenge,
+          allowCredentials: [{ id: base64ToBuf(state.vaultBiometricId), type: 'public-key' }],
+          userVerification: 'required',
+          timeout: 60000
+        }
+      });
+      return !!assertion;
+    } catch(e){ return false; }
+  }
+
+  function renderSettings(){
+    const modeStatusText = document.getElementById('mode-status-text');
+    const modeBtn = document.getElementById('mode-btn');
+    const modeNote = document.getElementById('mode-note');
+    modeStatusText.textContent = state.mode === 'wake' ? 'Mode Bangun' : 'Mode Tidur';
+
+    const inSleepWindow = isSleepWindowNow();
+    if (state.mode === 'wake'){
+      modeBtn.textContent = 'Ganti ke Mode Tidur';
+      modeBtn.disabled = !inSleepWindow;
+      modeNote.textContent = inSleepWindow
+        ? 'Bisa diaktifkan sekarang.'
+        : 'Cuma bisa diaktifkan jam 22.00\u201305.00.';
+    } else {
+      modeBtn.textContent = 'Ganti ke Mode Bangun';
+      modeBtn.disabled = false;
+      modeNote.textContent = 'Karyawan tetap kerja (' + Math.round(SLEEP_RATE_PCT * 100) + '% rate), aman dari karyawan korup.';
+    }
+
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const el = document.getElementById('history-list');
+    if (state.history.length === 0){
+      el.innerHTML = '<div class="empty-note">Belum ada riwayat.</div>';
+      return;
+    }
+    el.innerHTML = state.history.map((h, i) => {
+      const d = new Date(h.t);
+      const time = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      let extra = '';
+      if (h.type === 'corrupt' && !h.claimed){
+        extra = '<button class="shop-btn claim-btn" data-idx="' + i + '">Klaim ' + h.claimAmount.toLocaleString('id-ID') + '</button>';
+      } else if (h.type === 'corrupt' && h.claimed){
+        extra = '<span class="claimed-tag">Sudah diklaim</span>';
+      }
+      return '<div class="history-row"><span class="history-time">' + time + '</span><span class="history-text">' + h.text + '</span>' + extra + '</div>';
+    }).join('');
+    el.querySelectorAll('.claim-btn').forEach(btn => {
+      btn.addEventListener('click', () => claimCorrupt(parseInt(btn.dataset.idx, 10)));
+    });
+  }
+
+  function claimCorrupt(index){
+    const entry = state.history[index];
+    if (!entry || entry.type !== 'corrupt' || entry.claimed) return;
+    state.balance += entry.claimAmount;
+    entry.claimed = true;
+    saveState();
+    renderHistory();
+    renderHome();
+  }
+
+  function renderCareerSelect(){
+    const el = document.getElementById('career-list');
+    el.innerHTML = CAREERS.map(c => {
+      const badgeClass = c.type === 'passive' ? 'passive' : 'active';
+      const badgeText = c.type === 'passive' ? 'Karyawan' : 'Usaha Sendiri';
+      const incomeText = c.type === 'passive'
+        ? '+' + c.rate.toLocaleString('id-ID') + '/detik otomatis'
+        : '+' + c.tapValue.toLocaleString('id-ID') + '/tap (manual)';
+      return '<div class="career-card"><div class="career-card-head">'
+        + '<span class="career-name">' + c.name + '</span>'
+        + '<span class="career-badge ' + badgeClass + '">' + badgeText + '</span></div>'
+        + '<div class="career-desc">' + c.desc + '</div>'
+        + '<div class="career-income">' + incomeText + '</div>'
+        + '<div class="career-proscons"><span class="career-pro">+ ' + c.pro + '</span>'
+        + '<span class="career-con">\u2212 ' + c.con + '</span></div>'
+        + '<button class="career-btn" data-career="' + c.id + '">Pilih ' + c.name + '</button></div>';
+    }).join('');
+    el.querySelectorAll('.career-btn').forEach(btn => {
+      btn.addEventListener('click', () => chooseCareer(btn.dataset.career));
+    });
+  }
+
+  function chooseCareer(id){
+    const career = CAREERS.find(c => c.id === id);
+    if (!career) return;
+    state.careerPath = id;
+    state.careerChosen = true;
+    addHistory('Mulai jalur karier: ' + career.name);
+    saveState();
+    document.getElementById('onboarding').style.display = 'none';
+    renderAll();
+  }
+
+  function renderAll(){
+    renderHome();
+    renderAchieveBadge();
+    if (currentView === 'toko') renderShop();
+    if (currentView === 'settings') renderSettings();
+    if (currentView === 'bank' && bankUnlockedThisSession) renderVaultContents();
+    if (currentView === 'analisis') renderAnalysis();
+  }
+
+  function switchView(view){
+    currentView = view;
+    if (view !== 'bank') bankUnlockedThisSession = false;
+    ['home', 'bank', 'toko', 'analisis', 'settings'].forEach(v => {
+      document.getElementById('view-' + v).classList.toggle('active', v === view);
+    });
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.view === view);
+    });
+    document.getElementById('settings-btn').classList.toggle('active', view === 'settings');
+    if (view === 'toko') renderShop();
+    if (view === 'settings') renderSettings();
+    if (view === 'bank') renderBankGate();
+    if (view === 'analisis') renderAnalysis();
+  }
+
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.addEventListener('click', () => switchView(b.dataset.view));
+  });
+  document.getElementById('settings-btn').addEventListener('click', () => switchView('settings'));
+  document.getElementById('tap-btn').addEventListener('click', tapMine);
+
+  document.getElementById('onboard-continue-btn').addEventListener('click', () => {
+    document.getElementById('onboard-welcome').classList.remove('active');
+    document.getElementById('onboard-select').classList.add('active');
+  });
+
+  document.getElementById('mode-btn').addEventListener('click', () => {
+    if (state.mode === 'wake'){
+      if (!isSleepWindowNow()) return;
+      state.mode = 'sleep';
+    } else {
+      state.mode = 'wake';
+    }
+    saveState();
+    renderSettings();
+    renderHome();
+  });
+
+  const labelMap = { mudah: 'Mudah', lumayan: 'Lumayan', susah: 'Susah', rumit: 'Rumit' };
+
+  document.getElementById('pw-input-new').addEventListener('input', (e) => {
+    const strength = ratePasswordStrength(e.target.value);
+    document.getElementById('pw-strength').textContent = strength ? ('Tingkat kesulitan: ' + labelMap[strength]) : '';
+  });
+
+  document.getElementById('pw-save-btn').addEventListener('click', () => {
+    const val = document.getElementById('pw-input-new').value;
+    if (!val) return;
+    state.vaultPassword = val;
+    saveState();
+    bankUnlockedThisSession = true;
+    renderBankGate();
+  });
+
+  document.getElementById('pw-unlock-btn').addEventListener('click', () => {
+    const val = document.getElementById('pw-input-login').value;
+    if (val === state.vaultPassword){
+      bankUnlockedThisSession = true;
+      renderBankGate();
+    } else {
+      document.getElementById('pw-error').textContent = 'Sandi salah, coba lagi.';
+    }
+  });
+
+  document.getElementById('change-pw-btn').addEventListener('click', () => {
+    state.vaultPassword = null;
+    state.vaultBiometricId = null;
+    bankUnlockedThisSession = false;
+    saveState();
+    renderBankGate();
+  });
+
+  document.getElementById('deposit-btn').addEventListener('click', depositToBank);
+  document.getElementById('withdraw-btn').addEventListener('click', withdrawFromBank);
+
+  document.getElementById('biometric-unlock-btn').addEventListener('click', async () => {
+    const ok = await verifyBiometric();
+    if (ok){
+      bankUnlockedThisSession = true;
+      renderBankGate();
+    } else {
+      document.getElementById('pw-error').textContent = 'Sidik jari gak cocok/dibatalkan, coba lagi atau pakai sandi.';
+    }
+  });
+
+  document.getElementById('biometric-toggle-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('biometric-toggle-btn');
+    if (state.vaultBiometricId){
+      state.vaultBiometricId = null;
+      saveState();
+      renderBankGate();
+    } else {
+      btn.disabled = true;
+      btn.textContent = 'Menunggu...';
+      const ok = await registerBiometric();
+      btn.disabled = false;
+      if (!ok) document.getElementById('biometric-status-text').textContent = 'Gagal, coba lagi';
+      renderBankGate();
+    }
+  });
+
+  async function init(){
+    await loadState();
+    applyOfflineCatchup();
+    applyTheme();
+    if (!state.careerChosen){
+      renderCareerSelect();
+      document.getElementById('onboarding').style.display = 'block';
+    }
+    tick();
+    setInterval(tick, 1000);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) saveState(); });
+    window.addEventListener('beforeunload', () => { saveState(); });
+  }
+
+  init();
+</script>
+</body>
+</html>
