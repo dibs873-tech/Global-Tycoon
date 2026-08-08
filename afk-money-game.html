@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFK Uang</title>
+<style>
+  :root{
+    --bg:#F2F2F0;
+    --surface:#FFFFFF;
+    --line:#E1E1DC;
+    --text:#1C1F1B;
+    --text-dim:#8B8F87;
+    --accent:#1F7A4E;
+    --accent-boost:#C9971F;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;}
+  .app{max-width:420px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;padding-bottom:82px;}
+
+  .view{display:none;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;}
+  .view.active{display:flex;}
+
+  .balance-num{font-size:clamp(40px,12vw,64px);font-weight:700;color:var(--accent);
+    font-variant-numeric:tabular-nums;transition:color .3s;}
+  .balance-num.pulse{animation:pulse .3s ease;}
+  @keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.03);}100%{transform:scale(1);}}
+  body.boost-active .balance-num{color:var(--accent-boost);}
+
+  .rate-line{margin-top:14px;font-size:15px;color:var(--text-dim);}
+  .boost-line{margin-top:6px;font-size:13px;color:var(--text-dim);}
+  body.boost-active .boost-line{color:var(--accent-boost);font-weight:600;}
+
+  .bank-label{font-size:13px;letter-spacing:.06em;color:var(--text-dim);text-transform:uppercase;margin-bottom:12px;}
+  .bank-num{font-size:clamp(32px,10vw,48px);font-weight:700;color:var(--accent);
+    font-variant-numeric:tabular-nums;word-break:break-all;}
+
+  .navbar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+    border-top:1px solid var(--line);display:flex;justify-content:center;padding:14px 0;}
+  .nav-btn{font-size:14px;font-weight:600;background:none;border:1px solid var(--line);
+    color:var(--text);padding:10px 30px;border-radius:999px;cursor:pointer;transition:.2s;}
+  .nav-btn:hover,.nav-btn:focus-visible{border-color:var(--accent);color:var(--accent);outline:none;}
+
+  @media (prefers-reduced-motion: reduce){
+    .balance-num.pulse{animation:none !important;}
+    .nav-btn{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <main id="view-home" class="view active">
+      <div id="balance-num" class="balance-num">0</div>
+      <div id="rate" class="rate-line">+1/detik</div>
+      <div id="boost-line" class="boost-line">Boost berikutnya: 60:00</div>
+    </main>
+
+    <main id="view-bank" class="view">
+      <div class="bank-label">Saldo Bank</div>
+      <div id="bank-balance" class="bank-num">0</div>
+    </main>
+  </div>
+
+  <nav class="navbar">
+    <button id="nav-btn" class="nav-btn">Bank</button>
+  </nav>
+
+<script>
+  const STORAGE_KEY = 'startTime';
+  let startTime = null;
+  let currentView = 'home';
+
+  function rateForHour(h){ return Math.pow(2, h); }
+
+  function computeState(elapsedSeconds){
+    const fullHours = Math.floor(elapsedSeconds / 3600);
+    const remainder = elapsedSeconds - fullHours * 3600;
+    const boostActive = remainder < 15;
+    const rateNow = boostActive ? 1000 : rateForHour(fullHours);
+    const boostRemaining = boostActive ? (15 - remainder) : (3600 - remainder);
+
+    const completeBoost = fullHours * 15000;
+    const completeNormal = 3585 * (Math.pow(2, fullHours) - 1);
+    const partial = boostActive ? (remainder * 1000) : (15000 + (remainder - 15) * rateForHour(fullHours));
+    const balance = Math.floor(completeBoost + completeNormal + partial);
+
+    return { balance, rateNow, boostActive, boostRemaining, elapsedSeconds };
+  }
+
+  function formatCountdown(sec){
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec%60);
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+
+  function updateDisplay(state){
+    const numEl = document.getElementById('balance-num');
+    numEl.textContent = state.balance.toLocaleString('id-ID');
+    numEl.classList.remove('pulse');
+    void numEl.offsetWidth;
+    numEl.classList.add('pulse');
+
+    document.getElementById('bank-balance').textContent = state.balance.toLocaleString('id-ID');
+    document.getElementById('rate').textContent = '+' + state.rateNow.toLocaleString('id-ID') + '/detik';
+
+    const boostLineEl = document.getElementById('boost-line');
+    if (state.boostActive){
+      boostLineEl.textContent = 'Boost aktif \u00b7 ' + state.boostRemaining + ' detik lagi';
+    } else {
+      boostLineEl.textContent = 'Boost berikutnya: ' + formatCountdown(state.boostRemaining);
+    }
+
+    document.body.classList.toggle('boost-active', state.boostActive);
+  }
+
+  function tick(){
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    updateDisplay(computeState(elapsed));
+  }
+
+  async function initState(){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      startTime = (res && res.value) ? parseInt(res.value, 10) : Date.now();
+      if (!res || !res.value){
+        await window.storage.set(STORAGE_KEY, String(startTime), false);
+      }
+    } catch(e){
+      startTime = Date.now();
+      try{ await window.storage.set(STORAGE_KEY, String(startTime), false); } catch(e2){ /* jalan tanpa penyimpanan */ }
+    }
+    tick();
+    setInterval(tick, 1000);
+  }
+
+  document.getElementById('nav-btn').addEventListener('click', () => {
+    currentView = currentView === 'home' ? 'bank' : 'home';
+    document.getElementById('view-home').classList.toggle('active', currentView === 'home');
+    document.getElementById('view-bank').classList.toggle('active', currentView === 'bank');
+    document.getElementById('nav-btn').textContent = currentView === 'home' ? 'Bank' : 'Beranda';
+  });
+
+  initState();
+</script>
+</body>
+</html>
